@@ -1,0 +1,43 @@
+------------ Options -------------
+aspect_ratio: 1.0
+batchSize: 128
+checkpoints_dir: ./checkpoints
+dataroot: C:/Coding/Python/Nifti/Server/codice_curriculum/
+dataset_mode: aligned
+depthSize: 32
+display_id: 0
+display_port: 8097
+display_single_pane_ncols: 0
+display_winsize: 256
+district: ['adrenal_gland', 'thyroid', 'gallbladder', 'bladder', 'kidney', 'trachea', 'pancreas', 'spleen', 'brain', 'stomach', 'lung', 'liver', 'arms', 'legs']
+fineSize: 32
+gpu_ids: []
+grouped_district: False
+how_many: 50
+input_nc: 1
+isTrain: False
+loadSize: 32
+max_dataset_size: inf
+model: pix2pix3d
+nThreads: 2
+n_layers_D: 3
+name: SORTED+GROUPED_district+WARMUP_1
+ndf: 64
+ngf: 64
+no_dropout: False
+no_flip: False
+norm: instance
+ntest: inf
+out_path: C:/Coding/Python/Nifti/Server/output
+output_nc: 1
+parto_da_switch: False
+phase: test
+resize_or_crop: resize_and_crop
+results_dir: ./results/
+serial_batches: False
+test_district: legs
+which_direction: AtoB
+which_epoch: BEST_final_200
+which_model_netD: basic
+which_model_netG: unet_128
+-------------- End ----------------
