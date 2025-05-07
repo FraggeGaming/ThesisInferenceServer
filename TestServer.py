@@ -10,6 +10,7 @@ from subprocess import Popen
 import threading
 import platform
 import signal
+from typing import List, Dict
 
 
 app = Flask(__name__)
@@ -24,24 +25,11 @@ class AIModel:
     outputModality: str
     region: str
 
-AVAILABLE_MODELS = [
-    AIModel(
-        id=1,
-        title="CT-to-PET (Brain)",
-        description="Converts brain CT scans to synthetic PET images.",
-        inputModality="CT",
-        outputModality="PET",
-        region="Brain"
-    ),
-    AIModel(
-        id=2,
-        title="CT-to-PET (Total Body)",
-        description="Converts full-body CT scans to PET.",
-        inputModality="CT",
-        outputModality="PET",
-        region="Total Body"
-    ),
-]
+@dataclass
+class ModelWithPath:
+    model: AIModel
+    modelPath: str
+    networkName: str
 
 # Base directory (handles normal + PyInstaller executable)
 BASE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
@@ -57,6 +45,7 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 # Ensure necessary folders exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
 
 
 #the running processes and its lock is for keeping track of the process so it can be discarded if the user wants to cancel
@@ -66,10 +55,32 @@ lock = threading.Lock() #lock for saving the process
 progress_state = {}  #Dict for accessing the latest progress update for each running job_id
 progress_lock = threading.Lock()
 
+def read_existing_models(path: str = "models.json") -> Dict[int, ModelWithPath]:
+    with open(path, "r") as file:
+        data = json.load(file)
+
+    model_dict = {}
+    for item in data:
+        model_path = item.pop("modelPath")
+        network_name = item.pop("networkName")
+        model = AIModel(**item)
+        model_dict[model.id] = ModelWithPath(model=model, modelPath=model_path, networkName=network_name)
+    return model_dict
+
+def get_model_path_by_id(model_id: int) -> str:
+    models = read_existing_models()
+    return models.get(model_id).modelPath if model_id in models else None
+
+def get_network_name_by_id(model_id: int, path: str = "models.json") -> str:
+    models = read_existing_models(path)
+    return models.get(model_id).networkName if model_id in models else None
+
 @app.route("/modalities", methods=["GET"])
 def get_modalities():
     try:
-        modalities = sorted(set(model.inputModality for model in AVAILABLE_MODELS))
+        fetchedModels = read_existing_models()
+        print(fetchedModels)
+        modalities = sorted(set(wrapper.model.inputModality for wrapper in fetchedModels.values()))
         return jsonify(modalities)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -78,7 +89,8 @@ def get_modalities():
 @app.route("/regions", methods=["GET"])
 def get_regions():
     try:
-        regions = sorted(set(model.region for model in AVAILABLE_MODELS))
+        fetchedModels = read_existing_models()
+        regions = sorted(set(wrapper.model.region for wrapper in fetchedModels.values()))
         return jsonify(regions)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -115,10 +127,12 @@ def get_models():
             print("Missing modality or region in the request.")
             return jsonify({"error": "Missing modality or region"}), 400
 
+        fetchedModels = read_existing_models()
+
         filtered_models = [
-            asdict(model)
-            for model in AVAILABLE_MODELS
-            if model.inputModality == modality and model.region == region
+            asdict(wrapper.model)
+            for wrapper in fetchedModels.values()
+            if wrapper.model.inputModality == modality and wrapper.model.region == region
         ]
 
         print(f"Found {len(filtered_models)} matching models.")
@@ -151,7 +165,7 @@ def read_progress(job_id, process):
             except Exception as e:
                 print(f"[{job_id}] Failed to parse progress: {e}")
         
-        #print(f"[{job_id} LOG]", line)
+        print(f"[{job_id} LOG]", line)
 
 
 #Fetches the progress json gathered from the stdout of the inference
@@ -232,10 +246,15 @@ def process_nifti():
     region = metadata['region']
     model = metadata['model']
     model_id = model.get("id")
+    model_folder_path = get_model_path_by_id(model_id)
+    
+    print(f"Model path: {model_folder_path}")
 
-    name = 'SORTED+GROUPED_district+WARMUP_1'
-    which_epoch = 'BEST_final_200'
+    which_epoch = get_network_name_by_id(model_id)
     test_district = region
+
+    switch_path = os.path.join(CHECKPOINTS_DIR, model_folder_path)
+    print("Network name:", get_network_name_by_id(model_id))
 
     
     command = [
@@ -245,10 +264,10 @@ def process_nifti():
         "--dataroot", DATA_PATH,
         "--test_district", test_district,
         "--which_epoch", str(which_epoch),
-        "--name", name,
         "--out_path", OUTPUT_DIR,
         "--upload_dir", upload_path,
         "--checkpoints_dir", CHECKPOINTS_DIR,
+        "--switch_paths", switch_path
     ]
 
     print(f"Running model command:\n{command}")

@@ -1,0 +1,43 @@
+[
+    {
+      "id": 1,
+      "title": "CT-to-PET (CL_ff)",
+      "description": "Converts CT scans to synthetic PET images. Trained with curriculum learning with a forgetting factor",
+      "inputModality": "CT",
+      "outputModality": "PET",
+      "region": "Total Body",
+      "modelPath": "CL_ff_0.8_v2",
+      "networkName": "BEST_final_400"
+    },
+    {
+      "id": 2,
+      "title": "CT-to-PET (Total Body)",
+      "description": "Converts full-body CT scans to PET.",
+      "inputModality": "CT",
+      "outputModality": "PET",
+      "region": "Total Body",
+      "modelPath": "Test_switch",
+      "networkName": "BEST_final_200"
+    },
+    {
+      "id": 3,
+      "title": "CT-to-PET (Curriculum learning)",
+      "description": "Converts full-body CT scans to PET. Trained with a curriculum learning strategy",
+      "inputModality": "CT",
+      "outputModality": "PET",
+      "region": "Total Body",
+      "modelPath": "CL_baseline",
+      "networkName": "BEST_final_400"
+    }
+    ,
+    {
+      "id": 4,
+      "title": "CT-to-PET (CL_sampling)",
+      "description": "Converts full-body CT scans to PET. Trained with a sampling strategy",
+      "inputModality": "CT",
+      "outputModality": "PET",
+      "region": "Total Body",
+      "modelPath": "CL_sampling",
+      "networkName": "BEST_final_400"
+    }
+  ]

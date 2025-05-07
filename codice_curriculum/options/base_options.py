@@ -43,6 +43,7 @@ class BaseOptions():
         #self.parser.add_argument('--random_district', action='store_true', help='distretti in ordine randomico')
         self.parser.add_argument('--grouped_district', action='store_true',help='continue training: load the latest model')
         self.parser.add_argument('--parto_da_switch', action='store_true', help='faccio partire training da switch')
+        self.parser.add_argument('--switch_paths', type=str, default='./', help='path to the checkpoint folder')
 
 
 
@@ -86,9 +87,7 @@ class BaseOptions():
         print('-------------- End ----------------')
 
         # save to the disk
-        expr_dir = os.path.join(self.opt.checkpoints_dir, self.opt.name)
-        util.mkdirs(expr_dir)
-        file_name = os.path.join(expr_dir,'opt.txt')
+        file_name = os.path.join(self.opt.switch_paths,'opt.txt')
         with open(file_name, 'wt') as opt_file:
             opt_file.write('------------ Options -------------\n')
             for k, v in sorted(args.items()):

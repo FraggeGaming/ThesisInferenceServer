@@ -12,7 +12,7 @@ class BaseModel():
         self.isTrain = opt.isTrain
         self.Tensor = torch.cuda.FloatTensor if self.gpu_ids else torch.Tensor
         #self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)
-        self.save_dir = os.path.join(opt.dataroot, "checkpoints", opt.name)
+        self.save_dir = os.path.join(opt.switch_paths)
         #self.save_dir = '/mimer/NOBACKUP/groups/snic2022-5-277/piacente/Pix2Pix_and_District-classifier-modifica/checkpoints/Pix2Pix-Head_Pix2Pix-total'
         #self.save_dir_rebecca = '/mimer/NOBACKUP/groups/snic2022-5-277/rrestivo/Pix2Pix_WholeBody/checkpoints/experiment_name'
         self.save_dir_rebecca = '/mimer/NOBACKUP/groups/snic2022-5-277/rrestivo/Pix2Pix_Legs/checkpoints/experiment_name'

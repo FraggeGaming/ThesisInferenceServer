@@ -15,5 +15,6 @@ class TestOptions(BaseOptions):
         self.parser.add_argument('--test_district', type=str, default='adrenal_gland', help='head, body, arms, legs')
         self.parser.add_argument('--json_id', type=str, default='id', help='id for the subprocess. Used to keep track of which ui the subprocess runs for')
         self.parser.add_argument('--upload_dir', type=str, default='./', help='path to the uploaded nifti file')
+
         self.isTrain = False
 
