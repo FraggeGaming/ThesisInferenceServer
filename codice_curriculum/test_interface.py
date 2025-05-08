@@ -60,7 +60,9 @@ def update_progress(job_id, step, total):
         "step": step,
         "total": total,
         "job_id": job_id,
-        "finished": False
+        "finished": False,
+        "status": "Running",
+        "error": False
     }
     write_progress(data)
 
@@ -69,7 +71,9 @@ def write_finished(job_id):
         "step": 1,
         "total": 1,
         "job_id": job_id,
-        "finished": True
+        "finished": True,
+        "status": "Finished",
+        "error": False
     }
     write_progress(data)
         

@@ -1,16 +1,7 @@
 /output
 /uploads
-/codice_curriculum/checkpoints/**/BEST_final_200_net_*.pth
-checkpoints/CL_baseline/BEST_final_400_net_D.pth
-checkpoints/CL_baseline/BEST_final_400_net_G.pth
-checkpoints/CL_ff_0.8_v2/BEST_final_400_net_D.pth
-checkpoints/CL_ff_0.8_v2/BEST_final_400_net_G.pth
-checkpoints/CL_baseline/opt.txt
-checkpoints/CL_ff_0.8_v2/opt.txt
-checkpoints/CL_sampling/BEST_final_400_net_D.pth
-checkpoints/CL_sampling/BEST_final_400_net_G.pth
-checkpoints/CL_sampling/opt.txt
-checkpoints/Test_switch/BEST_final_200_net_D.pth
-checkpoints/Test_switch/BEST_final_200_net_G.pth
-checkpoints/Test_switch/opt.txt
+/checkpoints
+
+
+/Logs
 

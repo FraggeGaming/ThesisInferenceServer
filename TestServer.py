@@ -11,6 +11,10 @@ import threading
 import platform
 import signal
 from typing import List, Dict
+from datetime import datetime
+import traceback
+
+
 
 
 app = Flask(__name__)
@@ -36,16 +40,19 @@ BASE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 
 # Paths relative to the base directory
-DATA_PATH = os.path.join(BASE_DIR, "codice_curriculum")
-TEST_SCRIPT = os.path.join(DATA_PATH, "test_interface.py")
-CHECKPOINTS_DIR = os.path.join(BASE_DIR, "checkpoints")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+DATA_PATH = os.path.join(BASE_DIR, "codice_curriculum") #Path to the inference code
+TEST_SCRIPT = os.path.join(DATA_PATH, "test_interface.py") #Inference script
+CHECKPOINTS_DIR = os.path.join(BASE_DIR, "checkpoints") #Where all added switches, or models lay
+OUTPUT_DIR = os.path.join(BASE_DIR, "output") #Directory to store the generated files
+#Directory to fetch and save the files that are to be generated. 
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads") #Obs these files gets deleted when user downloads the output
+LOG_DIR = os.path.join(BASE_DIR, "Logs")
 
 # Ensure necessary folders exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 #the running processes and its lock is for keeping track of the process so it can be discarded if the user wants to cancel
@@ -54,6 +61,26 @@ lock = threading.Lock() #lock for saving the process
 
 progress_state = {}  #Dict for accessing the latest progress update for each running job_id
 progress_lock = threading.Lock()
+
+def write_error_log(error_text: str, log_dir: str = LOG_DIR) -> str:
+    """
+    Writes an error log to a uniquely named file inside the specified log directory.
+    
+    Args:
+        error_text (str): The error message or traceback to log.
+        log_dir (str): Path to the logs directory. Defaults to global LOG_DIR.
+        
+    Returns:
+        str: The path to the written log file.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"error_{timestamp}.txt"
+    log_path = os.path.join(log_dir, log_filename)
+
+    with open(log_path, "w") as log_file:
+        log_file.write(error_text)
+
+    return log_path
 
 def read_existing_models(path: str = "models.json") -> Dict[int, ModelWithPath]:
     with open(path, "r") as file:
@@ -83,6 +110,8 @@ def get_modalities():
         modalities = sorted(set(wrapper.model.inputModality for wrapper in fetchedModels.values()))
         return jsonify(modalities)
     except Exception as e:
+        error_text = "Error in /modalities endpoint:\n\n" + traceback.format_exc()
+        log_path = write_error_log(error_text)
         return jsonify({"error": str(e)}), 500
 
 
@@ -93,6 +122,8 @@ def get_regions():
         regions = sorted(set(wrapper.model.region for wrapper in fetchedModels.values()))
         return jsonify(regions)
     except Exception as e:
+        error_text = "Error in /regions endpoint:\n\n" + traceback.format_exc()
+        log_path = write_error_log(error_text)
         return jsonify({"error": str(e)}), 500
 
 #Function to kill the subprocess
@@ -142,6 +173,8 @@ def get_models():
         return jsonify(filtered_models)
 
     except Exception as e:
+        error_text = "Error in /getmodels endpoint:\n\n" + traceback.format_exc()
+        log_path = write_error_log(error_text)
         print("Exception occurred while handling /getmodels:", str(e))
         return jsonify({"error": str(e)}), 500
     
@@ -149,12 +182,14 @@ def get_models():
 #function for reading the process stdout to get progress update from the inference. Saving the progress inside progress_state dict for the said job_id
 def read_progress(job_id, process):
     marker = "::PROGRESS::"
+    output_lines = []
+
     for raw_line in process.stdout:
         line = raw_line.strip()
-
-        # Skip blank lines
         if not line:
             continue
+
+        output_lines.append(line)
 
         if marker in line:
             try:
@@ -162,10 +197,20 @@ def read_progress(job_id, process):
                 data = json.loads(payload.strip())
                 with progress_lock:
                     progress_state[job_id] = data
-            except Exception as e:
-                print(f"[{job_id}] Failed to parse progress: {e}")
-        
+            except Exception:
+                write_error_log(traceback.format_exc())
+
         print(f"[{job_id} LOG]", line)
+
+    #log traceback if present
+    full_output = "\n".join(output_lines)
+    if "Traceback (most recent call last):" in full_output:
+        traceback_part = full_output.split("Traceback (most recent call last):", 1)[-1]
+        write_error_log(f"[{job_id}] Traceback:\nTraceback (most recent call last):{traceback_part}")
+        with progress_lock:
+            progress_state[job_id]["error"] = True
+            progress_state[job_id]["status"] = traceback_part #Remove this and just send "model failed" if you dont want to specify filepaths etc
+
 
 
 #Fetches the progress json gathered from the stdout of the inference
@@ -190,6 +235,8 @@ def download_output(job_id):
 
     remove_uploaded_nifti(job_id)
     if not os.path.exists(nifti_output):
+        error_text = "Error in /download endpoint:\n\n" + traceback.format_exc()
+        log_path = write_error_log(error_text)
         return "Output file not ready yet.", 404
 
     return send_file(nifti_output, mimetype="application/octet-stream", as_attachment=True)
@@ -271,6 +318,9 @@ def process_nifti():
     ]
 
     print(f"Running model command:\n{command}")
+    
+    with progress_lock:
+        progress_state[job_id] = {"status": "Loading inference subprocess", "job_id": job_id}
     try:
         process = subprocess.Popen(
             command,
@@ -289,9 +339,14 @@ def process_nifti():
         ).start()
 
         running_processes[job_id] = process
+        
+        with progress_lock:
+            progress_state[job_id] = {"status": "Inference subprocess started", "job_id": job_id,}
         return jsonify({"status": "Running model"}), 200
 
     except Exception as e:
+        error_text = "Error in /process endpoint:\n\n" + traceback.format_exc()
+        log_path = write_error_log(error_text)
         print(f"Error running command: {e}")
         return f"Error starting model: {e}", 500
 
