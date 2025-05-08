@@ -319,8 +319,17 @@ def process_nifti():
 
     print(f"Running model command:\n{command}")
     
+    
     with progress_lock:
-        progress_state[job_id] = {"status": "Loading inference subprocess", "job_id": job_id}
+        data = {
+            "step": 1,
+            "total": 1,
+            "job_id": job_id,
+            "finished": False,
+            "status": "Loading inference subprocess",
+            "error": False
+        }
+        progress_state[job_id] = data
     try:
         process = subprocess.Popen(
             command,
@@ -340,8 +349,6 @@ def process_nifti():
 
         running_processes[job_id] = process
         
-        with progress_lock:
-            progress_state[job_id] = {"status": "Inference subprocess started", "job_id": job_id,}
         return jsonify({"status": "Running model"}), 200
 
     except Exception as e:
